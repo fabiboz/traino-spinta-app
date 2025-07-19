@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Checklist Traino e Spinta</title>
+
+  <!-- PWA / Icone -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-512.png" />
+  <meta name="theme-color" content="#0b5ed7" />
+
   <style>
     body { font-family: sans-serif; padding: 20px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
@@ -154,6 +161,15 @@
     }
 
     generaChecklist();
+  </script>
+
+  <!-- Attiva installazione come app -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log("Service Worker registrato"))
+        .catch(err => console.error("Errore Service Worker:", err));
+    }
   </script>
 </body>
 </html>
