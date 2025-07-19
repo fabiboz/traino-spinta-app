@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checklist Traino e Spinta</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+    textarea, input, select { width: 100%; }
+    .ok { color: green; font-weight: bold; }
+    .warning { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Checklist Estesa per Azioni di Traino e Spinta Manuale</h1>
+
+  <label>Contenitore ID: <input id="container-id" type="text" placeholder="Es. C001" /></label><br /><br />
+  <label>Sesso operatore:
+    <select id="sesso-operatore">
+      <option value="maschio">Maschio</option>
+      <option value="femmina">Femminile</option>
+    </select>
+  </label>
+  <label>Distanza (m): <input id="distanza" type="number" step="0.1" /></label>
+  <label>Frequenza azione: <input id="frequenza" type="text" placeholder="es. 1m" /></label>
+  <label>Altezza mani (cm): <input id="altezza-mani" type="number" /></label>
+  <label>Forza Iniziale (N): <input id="forza-iniziale" type="number" step="0.1" /></label>
+  <label>Forza Mantenimento (N): <input id="forza-mantenimento" type="number" step="0.1" /></label>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Fattore di rischio</th>
+        <th>Sì / No</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody id="checklist-body"></tbody>
+  </table>
+  <button onclick="salvaDati()">Salva Cassonetto</button>
+  <button onclick="resetForm()">Reset</button>
+  <button onclick="esportaCSV()">Esporta Tutti i Cassonetti</button>
+  <button onclick="svuotaSalvataggio()">Svuota Tutti i Dati</button>
+
+  <div id="risultato-final"></div>
+
+  <script>
+    const domande = [
+      "Il carico è instabile, difficile da controllare o soggetto a sbilanciamento?",
+      "Le ruote o le rotelle sono usurate, difettose o non adatte al pavimento?",
+      "Il pavimento è irregolare, con pendenze, ostacoli o superfici scivolose?",
+      "La distanza di spinta/traino è superiore a 10 metri?",
+      "Le azioni di spinta/traino si ripetono frequentemente (più di 1 volta ogni 5 minuti)?",
+      "Il compito richiede posture scomode o forzate (es. schiena flessa, mani sopra le spalle)?",
+      "Lo sforzo richiesto è percepito come 'elevato' da parte dell'operatore?",
+      "L’ambiente di lavoro è rumoroso, caldo, freddo o con illuminazione inadeguata?",
+      "L’operazione viene svolta su rampe, gradini o superfici inclinate?",
+      "L’operatore non ha ricevuto formazione adeguata sulle tecniche di spinta/traino sicure?",
+      "Le maniglie o punti di presa non sono presenti o sono inadeguati?",
+      "Il carico deve essere spinto o tirato da più di una persona in modo non coordinato?"
+    ];
+
+    let cassonetti = [];
+    if (localStorage.getItem("cassonetti")) {
+      cassonetti = JSON.parse(localStorage.getItem("cassonetti"));
+    }
+
+    function generaChecklist() {
+      const tbody = document.getElementById("checklist-body");
+      tbody.innerHTML = "";
+      domande.forEach((domanda, i) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${domanda}</td>
+          <td><select><option value="">--</option><option value="Si">Sì</option><option value="No">No</option></select></td>
+          <td><textarea rows="1"></textarea></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function salvaDati() {
+      const id = document.getElementById("container-id").value;
+      const sesso = document.getElementById("sesso-operatore").value;
+      const distanza = document.getElementById("distanza").value;
+      const frequenza = document.getElementById("frequenza").value;
+      const altezza = document.getElementById("altezza-mani").value;
+      const fi = parseFloat(document.getElementById("forza-iniziale").value);
+      const fm = parseFloat(document.getElementById("forza-mantenimento").value);
+
+      const limiti = { maschio: { FI: 25, FM: 15 }, femmina: { FI: 20, FM: 10 } };
+      const valutazione = (fi > limiti[sesso].FI || fm > limiti[sesso].FM) ? "RISCHIO" : "OK";
+
+      const checklist = [];
+      document.querySelectorAll("#checklist-body tr").forEach(row => {
+        const celle = row.querySelectorAll("td");
+        checklist.push({
+          domanda: celle[1].innerText,
+          risposta: celle[2].querySelector("select").value,
+          note: celle[3].querySelector("textarea").value
+        });
+      });
+
+      cassonetti.push({ id, sesso, distanza, frequenza, altezza, fi, fm, checklist, valutazione });
+      localStorage.setItem("cassonetti", JSON.stringify(cassonetti));
+      alert("Cassonetto salvato correttamente.");
+      resetForm();
+    }
+
+    function esportaCSV() {
+      let csvCassonetti = [["Contenitore ID", "Sesso", "Distanza", "Frequenza", "Altezza mani", "FI (N)", "FM (N)", "Valutazione"]];
+      cassonetti.forEach(c => {
+        csvCassonetti.push([c.id, c.sesso, c.distanza, c.frequenza, c.altezza, c.fi, c.fm, c.valutazione]);
+      });
+      const csv1 = csvCassonetti.map(r => r.join(";")).join("\n");
+      const blob1 = new Blob([csv1], { type: 'text/csv' });
+      const url1 = URL.createObjectURL(blob1);
+      window.open(url1, '_blank');
+
+      let csvChecklist = [["Contenitore ID", "Domanda", "Risposta", "Note"]];
+      cassonetti.forEach(c => {
+        c.checklist.forEach(r => {
+          csvChecklist.push([c.id, r.domanda, r.risposta, r.note]);
+        });
+      });
+      const csv2 = csvChecklist.map(r => r.join(";")).join("\n");
+      const blob2 = new Blob([csv2], { type: 'text/csv' });
+      const url2 = URL.createObjectURL(blob2);
+      window.open(url2, '_blank');
+    }
+
+    function svuotaSalvataggio() {
+      if (confirm("Sei sicuro di voler eliminare tutti i cassonetti salvati?")) {
+        localStorage.removeItem("cassonetti");
+        cassonetti = [];
+        alert("Dati eliminati.");
+      }
+    }
+
+    function resetForm() {
+      document.getElementById("container-id").value = "";
+      document.getElementById("sesso-operatore").value = "maschio";
+      document.getElementById("distanza").value = "";
+      document.getElementById("frequenza").value = "";
+      document.getElementById("altezza-mani").value = "";
+      document.getElementById("forza-iniziale").value = "";
+      document.getElementById("forza-mantenimento").value = "";
+      generaChecklist();
+    }
+
+    generaChecklist();
+  </script>
+</body>
+</html>
