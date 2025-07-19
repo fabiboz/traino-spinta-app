@@ -1,0 +1,1 @@
+# traino-spinta-app
